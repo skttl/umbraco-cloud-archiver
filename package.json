@@ -1,0 +1,41 @@
+{
+  "name": "umbraco-cloud-archiver",
+  "version": "0.1.0",
+  "description": "Wizard-based CLI for archiving an Umbraco Cloud project (git, blob storage, database) to disk before shutdown.",
+  "keywords": [
+    "umbraco",
+    "umbraco-cloud",
+    "archive",
+    "backup",
+    "cli"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "archive-umbraco-cloud": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.27.0",
+    "@clack/prompts": "^0.9.1",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
