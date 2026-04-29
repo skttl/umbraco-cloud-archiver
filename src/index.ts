@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { log, spinner } from '@clack/prompts';
 import pc from 'picocolors';
 
@@ -12,7 +13,19 @@ import { findSqlpackage, offerSqlpackageDownload } from './tools/sqlpackage.js';
 import { cloneGitRepo } from './steps/cloneGit.js';
 import { downloadBlobs } from './steps/downloadBlobs.js';
 import { exportDatabase, writeManualBackupNote } from './steps/exportDatabase.js';
+import { writeArchiveReadme } from './steps/writeReadme.js';
 import { run } from './util/runProcess.js';
+
+function getToolVersion(): string {
+  try {
+    // dist/index.js → ../package.json
+    const pkgPath = fileURLToPath(new URL('../package.json', import.meta.url));
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+    return String(pkg.version ?? 'unknown');
+  } catch {
+    return 'unknown';
+  }
+}
 
 async function main(): Promise<void> {
   // Pre-flight: git is required.
@@ -102,11 +115,14 @@ async function main(): Promise<void> {
     }
   }
 
-  // Write archive metadata.
+  // Write archive metadata + README.
+  const finishedAt = new Date().toISOString();
+  const toolVersion = getToolVersion();
   const meta = {
     tool: 'umbraco-cloud-archiver',
+    toolVersion,
     startedAt,
-    finishedAt: new Date().toISOString(),
+    finishedAt,
     baseDir: cfg.baseDir,
     dbMode: cfg.dbMode,
     environments: cfg.environments.map((e) => ({
@@ -114,10 +130,12 @@ async function main(): Promise<void> {
       gitCloneUrl: e.gitCloneUrl,
       // Strip SAS token from metadata file.
       blobAccountAndContainer: e.blobSasUrl.split('?')[0],
+      cacheFolderIncluded: e.includeCacheFolder,
       databaseExported: Boolean(e.db && cfg.dbMode === 'sqlpackage'),
     })),
   };
   await writeFile(join(cfg.baseDir, 'archive-info.json'), JSON.stringify(meta, null, 2), 'utf8');
+  await writeArchiveReadme(cfg, { startedAt, finishedAt, toolVersion });
 
   done(`Archive complete → ${cfg.baseDir}`);
 }
