@@ -125,7 +125,7 @@ async function collectEnvironment(dbMode: DbMode, taken: string[]): Promise<Envi
 
   const blobSasUrl = ensure(
     await text({
-      message: `Container-level blob SAS URL for "${envName}":`,
+      message: `Shared Access Signature URL (SAS) for "${envName}" blob container:`,
       placeholder: 'https://<account>.blob.core.windows.net/<container>?sv=...',
       validate: (v) => {
         if (!v || !v.trim()) return 'Required';
@@ -140,29 +140,30 @@ async function collectEnvironment(dbMode: DbMode, taken: string[]): Promise<Envi
     'blob SAS URL',
   );
 
+  const includeCache = ensure(
+    await confirm({
+      message: `Download the "cache" folder from the blob container for "${envName}"? (Umbraco's cache folder is usually not needed for archiving.)`,
+      initialValue: false,
+    }),
+    'include-cache prompt',
+  );
+
   let db: Environment['db'];
   if (dbMode === 'sqlpackage') {
     const server = ensure(
       await text({
-        message: `SQL server hostname for "${envName}":`,
+        message: `SQL server name for "${envName}":`,
         placeholder: '<server>.database.windows.net',
         validate: (v) => (v && v.trim() ? undefined : 'Required'),
       }),
-      'sql server',
+      'sql server name',
     );
-    const database = ensure(
+    const login = ensure(
       await text({
-        message: `Database name for "${envName}":`,
+        message: `SQL login for "${envName}":`,
         validate: (v) => (v && v.trim() ? undefined : 'Required'),
       }),
-      'database name',
-    );
-    const user = ensure(
-      await text({
-        message: `SQL user for "${envName}":`,
-        validate: (v) => (v && v.trim() ? undefined : 'Required'),
-      }),
-      'sql user',
+      'sql login',
     );
     const passwd = ensure(
       await password({
@@ -171,11 +172,18 @@ async function collectEnvironment(dbMode: DbMode, taken: string[]): Promise<Envi
       }),
       'sql password',
     );
+    const database = ensure(
+      await text({
+        message: `Database for "${envName}":`,
+        validate: (v) => (v && v.trim() ? undefined : 'Required'),
+      }),
+      'database',
+    );
     db = {
       server: String(server).trim(),
-      database: String(database).trim(),
-      user: String(user).trim(),
+      login: String(login).trim(),
       password: String(passwd),
+      database: String(database).trim(),
     };
   }
 
@@ -183,6 +191,7 @@ async function collectEnvironment(dbMode: DbMode, taken: string[]): Promise<Envi
     name: envName,
     gitCloneUrl: String(gitCloneUrl).trim(),
     blobSasUrl: String(blobSasUrl).trim(),
+    includeCacheFolder: Boolean(includeCache),
     db,
   };
 }
@@ -197,8 +206,9 @@ function buildSummary(cfg: RunConfig): string {
     lines.push(`    - ${pc.cyan(env.name)}`);
     lines.push(`        git:  ${env.gitCloneUrl}`);
     lines.push(`        sas:  ${redactSas(env.blobSasUrl)}`);
+    lines.push(`        cache folder: ${env.includeCacheFolder ? 'included' : 'skipped'}`);
     if (env.db) {
-      lines.push(`        db:   ${env.db.user}@${env.db.server}/${env.db.database}`);
+      lines.push(`        db:   ${env.db.login}@${env.db.server}/${env.db.database}`);
     }
   }
   return lines.join('\n');

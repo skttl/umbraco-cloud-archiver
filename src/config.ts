@@ -2,15 +2,16 @@ export type DbMode = 'skip' | 'sqlpackage';
 
 export interface DbCredentials {
   server: string;
-  database: string;
-  user: string;
+  login: string;
   password: string;
+  database: string;
 }
 
 export interface Environment {
   name: string;
   gitCloneUrl: string;
   blobSasUrl: string;
+  includeCacheFolder: boolean;
   db?: DbCredentials;
 }
 

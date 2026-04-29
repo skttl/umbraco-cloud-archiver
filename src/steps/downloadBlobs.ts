@@ -9,7 +9,11 @@ import { parseContainerSasUrl } from '../util/sasUrl.js';
 
 export interface BlobOptions {
   azcopyPath: string | null;
+  /** If false, blobs under the top-level `cache/` folder are skipped. */
+  includeCacheFolder: boolean;
 }
+
+const CACHE_PREFIX = 'cache/';
 
 export async function downloadBlobs(
   sasUrl: string,
@@ -19,15 +23,24 @@ export async function downloadBlobs(
   await mkdir(destDir, { recursive: true });
 
   if (opts.azcopyPath) {
-    log.step(`Copying blobs with azcopy → ${destDir}`);
-    // azcopy copy "<containerSasUrl>/*" "<dest>" --recursive
+    log.step(
+      `Copying blobs with azcopy → ${destDir}${opts.includeCacheFolder ? '' : ' (skipping cache/)'}`,
+    );
     const source = appendStarToContainer(sasUrl);
-    await runOrThrow(opts.azcopyPath, ['copy', source, destDir, '--recursive=true']);
+    const args = ['copy', source, destDir, '--recursive=true'];
+    if (!opts.includeCacheFolder) {
+      args.push('--exclude-path=cache');
+    }
+    await runOrThrow(opts.azcopyPath, args);
     return;
   }
 
-  log.step(`Copying blobs with @azure/storage-blob SDK → ${destDir}`);
-  await downloadWithSdk(sasUrl, destDir);
+  log.step(
+    `Copying blobs with @azure/storage-blob SDK → ${destDir}${
+      opts.includeCacheFolder ? '' : ' (skipping cache/)'
+    }`,
+  );
+  await downloadWithSdk(sasUrl, destDir, opts.includeCacheFolder);
 }
 
 function appendStarToContainer(sasUrl: string): string {
@@ -37,13 +50,22 @@ function appendStarToContainer(sasUrl: string): string {
   return `${sasUrl.slice(0, qIdx)}/*${sasUrl.slice(qIdx)}`;
 }
 
-async function downloadWithSdk(sasUrl: string, destDir: string): Promise<void> {
+async function downloadWithSdk(
+  sasUrl: string,
+  destDir: string,
+  includeCacheFolder: boolean,
+): Promise<void> {
   const parsed = parseContainerSasUrl(sasUrl);
   const containerClient = new ContainerClient(parsed.containerUrlWithSas);
 
   let count = 0;
+  let skipped = 0;
   let bytes = 0;
   for await (const blob of containerClient.listBlobsFlat()) {
+    if (!includeCacheFolder && blob.name.toLowerCase().startsWith(CACHE_PREFIX)) {
+      skipped++;
+      continue;
+    }
     const blobClient = containerClient.getBlobClient(blob.name);
     const target = join(destDir, ...blob.name.split('/'));
     await mkdir(dirname(target), { recursive: true });
@@ -62,7 +84,8 @@ async function downloadWithSdk(sasUrl: string, destDir: string): Promise<void> {
       log.info(`  ${count} blobs (${formatBytes(bytes)}) downloaded so far...`);
     }
   }
-  log.success(`  ${count} blobs (${formatBytes(bytes)}) downloaded.`);
+  const skippedMsg = skipped > 0 ? ` (${skipped} skipped from cache/)` : '';
+  log.success(`  ${count} blobs (${formatBytes(bytes)}) downloaded${skippedMsg}.`);
 }
 
 function formatBytes(n: number): string {

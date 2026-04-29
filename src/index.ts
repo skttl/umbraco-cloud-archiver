@@ -77,7 +77,10 @@ async function main(): Promise<void> {
 
     s.start(`Downloading blobs for ${env.name}`);
     try {
-      await downloadBlobs(env.blobSasUrl, paths.blobs, { azcopyPath });
+      await downloadBlobs(env.blobSasUrl, paths.blobs, {
+        azcopyPath,
+        includeCacheFolder: env.includeCacheFolder,
+      });
       s.stop(`Blobs downloaded for ${env.name}`);
     } catch (err) {
       s.stop(pc.red(`Blob download failed for ${env.name}`));

@@ -17,7 +17,7 @@ export async function exportDatabase(
     '/Action:Export',
     `/SourceServerName:${creds.server}`,
     `/SourceDatabaseName:${creds.database}`,
-    `/SourceUser:${creds.user}`,
+    `/SourceUser:${creds.login}`,
     `/SourcePassword:${creds.password}`,
     `/TargetFile:${target}`,
     '/SourceTrustServerCertificate:true',
