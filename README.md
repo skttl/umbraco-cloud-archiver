@@ -13,7 +13,7 @@ For each environment (e.g. `live`, `stage`, `dev`) the tool archives:
 Requires **Node.js 20+** and **git** in your PATH.
 
 ```sh
-npx archive-umbraco-cloud
+npx umbraco-cloud-archiver@latest
 ```
 
 The tool walks you through a wizard:

@@ -18,30 +18,31 @@ export async function downloadFile(url: string, destFile: string): Promise<void>
 }
 
 /**
- * Extract a zip or tar.gz archive to destDir using OS-native tools.
- * - Windows: PowerShell Expand-Archive (zip) / tar (tgz, available on modern Windows)
- * - Unix: unzip / tar
+ * Extract a zip or tar.gz archive to destDir using bundled `tar` (bsdtar).
+ * Works on macOS, Linux and Windows 10 1803+ (which ships bsdtar as tar.exe
+ * with zip support). Falls back to `unzip` on Unix if tar handling fails.
  */
 export async function extractArchive(archivePath: string, destDir: string): Promise<void> {
   await mkdir(destDir, { recursive: true });
   const lower = archivePath.toLowerCase();
-  if (lower.endsWith('.zip')) {
-    if (process.platform === 'win32') {
-      await runChild('powershell.exe', [
-        '-NoProfile',
-        '-Command',
-        `Expand-Archive -LiteralPath '${archivePath}' -DestinationPath '${destDir}' -Force`,
-      ]);
-    } else {
+  const isZip = lower.endsWith('.zip');
+  const isTgz = lower.endsWith('.tar.gz') || lower.endsWith('.tgz');
+  if (!isZip && !isTgz) {
+    throw new Error(`Unsupported archive format: ${archivePath}`);
+  }
+
+  // bsdtar understands both zip and tar.gz via -xf.
+  try {
+    await runChild('tar', ['-xf', archivePath, '-C', destDir]);
+    return;
+  } catch (err) {
+    // On Unix, if tar doesn't handle zip (e.g. GNU tar), fall back to unzip.
+    if (isZip && process.platform !== 'win32') {
       await runChild('unzip', ['-o', '-q', archivePath, '-d', destDir]);
+      return;
     }
-    return;
+    throw err;
   }
-  if (lower.endsWith('.tar.gz') || lower.endsWith('.tgz')) {
-    await runChild('tar', ['-xzf', archivePath, '-C', destDir]);
-    return;
-  }
-  throw new Error(`Unsupported archive format: ${archivePath}`);
 }
 
 function runChild(command: string, args: string[]): Promise<void> {
