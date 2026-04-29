@@ -1,6 +1,6 @@
 {
   "name": "umbraco-cloud-archiver",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Wizard-based CLI for archiving an Umbraco Cloud project (git, blob storage, database) to disk before shutdown.",
   "keywords": [
     "umbraco",

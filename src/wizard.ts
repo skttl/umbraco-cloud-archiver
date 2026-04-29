@@ -43,15 +43,15 @@ export async function runWizard(): Promise<RunConfig> {
       message: 'Database backup strategy:',
       options: [
         {
-          value: 'skip',
-          label: 'Skip - I will fetch the database backup manually from the Cloud portal',
-        },
-        {
           value: 'sqlpackage',
           label: 'Export with sqlpackage (.bacpac) - prompts for SQL credentials per environment',
         },
+        {
+          value: 'skip',
+          label: 'Skip - I will fetch the database backup manually from the Cloud portal',
+        },
       ],
-      initialValue: 'skip',
+      initialValue: 'sqlpackage',
     }),
     'database mode',
   );
