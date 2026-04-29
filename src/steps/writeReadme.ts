@@ -88,6 +88,82 @@ sqlpackage /Action:Import \\
 
 …or import it through Azure Data Studio / SSMS (\`Import Data-tier Application\`).
 
+#### Restoring to LocalDB (recommended for local browsing)
+
+If you just want to spin the archived site up locally next to the \`repo/\`
+working copy, **LocalDB** is usually the easiest target.
+
+Umbraco Deploy expects LocalDB-attached files at
+\`umbraco/Data/Umbraco.mdf\` and \`umbraco/Data/Umbraco_log.ldf\` inside the
+project. The boolean toggle \`PreferLocalDbConnectionString\` tells Deploy to
+use that LocalDB instead of the Cloud connection string.
+
+##### Quickest: run the generated script
+
+For each environment that has a \`.bacpac\`, this archive contains a helper
+script next to it:
+
+\`\`\`
+<env>/database/restore-to-localdb.cmd   <- double-click on Windows
+<env>/database/restore-to-localdb.ps1   <- the actual logic
+\`\`\`
+
+The script will:
+
+1. Locate \`sqlpackage\` (PATH or the \`umbraco-cloud-archiver\` cache).
+2. Import the \`.bacpac\` into LocalDB under a temporary database name.
+3. Detach that database.
+4. Move + rename the resulting \`.mdf\` / \`.ldf\` files into
+   \`<env>/repo/umbraco/Data/\` as \`Umbraco.mdf\` and \`Umbraco_log.ldf\`.
+
+Prerequisites: SQL Server LocalDB and \`sqlcmd\` available in PATH. LocalDB
+ships with Visual Studio / SQL Server Express
+(<https://learn.microsoft.com/sql/database-engine/configure-windows/sql-server-express-localdb>).
+
+After running it, enable the Deploy toggle in
+\`<env>/repo/appsettings.Development.json\` (or \`appsettings.json\`):
+
+\`\`\`json
+{
+  "Umbraco": {
+    "Deploy": {
+      "Settings": {
+        "PreferLocalDbConnectionString": true
+      }
+    }
+  }
+}
+\`\`\`
+
+Then \`dotnet run\` from the working copy and the site comes up on the
+restored database.
+
+See the official docs:
+<https://docs.umbraco.com/umbraco-deploy/16.latest/getting-started/deploy-settings#preferlocaldbconnectionstring>
+
+##### Manual variant
+
+If you'd rather do it by hand (or on a non-Windows machine):
+
+\`\`\`sh
+sqllocaldb start MSSQLLocalDB
+sqlpackage /Action:Import \\
+  /SourceFile:<env>/database/<dbname>.bacpac \\
+  /TargetConnectionString:"Server=(LocalDb)\\\\MSSQLLocalDB;Database=UmbracoRestore;Integrated Security=true;"
+\`\`\`
+
+Then detach and move the files yourself:
+
+\`\`\`sql
+USE master;
+ALTER DATABASE UmbracoRestore SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+EXEC sp_detach_db 'UmbracoRestore';
+\`\`\`
+
+Move/rename the resulting \`.mdf\` / \`.ldf\` to
+\`<env>/repo/umbraco/Data/Umbraco.mdf\` / \`Umbraco_log.ldf\` and set
+\`PreferLocalDbConnectionString\` as shown above.
+
 ### \`MANUAL_BACKUP_REQUIRED.txt\` *if DB export was skipped*
 
 Follow the instructions inside the file to download the database backup from

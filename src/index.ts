@@ -14,6 +14,7 @@ import { cloneGitRepo } from './steps/cloneGit.js';
 import { downloadBlobs } from './steps/downloadBlobs.js';
 import { exportDatabase, writeManualBackupNote } from './steps/exportDatabase.js';
 import { writeArchiveReadme } from './steps/writeReadme.js';
+import { writeLocalDbRestoreScript } from './steps/writeRestoreScript.js';
 import { run } from './util/runProcess.js';
 
 function getToolVersion(): string {
@@ -109,6 +110,8 @@ async function main(): Promise<void> {
         s.stop(pc.red(`Database export failed for ${env.name}`));
         throw err;
       }
+      await writeLocalDbRestoreScript(paths, env.db.database);
+      log.info(`Wrote LocalDB restore script: ${paths.database}\\restore-to-localdb.cmd`);
     } else {
       await writeManualBackupNote(paths.database, env.name);
       log.info(`Wrote manual-backup note in ${paths.database}`);
