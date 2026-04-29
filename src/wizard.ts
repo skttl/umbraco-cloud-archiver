@@ -123,31 +123,6 @@ async function collectEnvironment(dbMode: DbMode, taken: string[]): Promise<Envi
     'git URL',
   );
 
-  const blobSasUrl = ensure(
-    await text({
-      message: `Shared Access Signature URL (SAS) for "${envName}" blob container:`,
-      placeholder: 'https://<account>.blob.core.windows.net/<container>?sv=...',
-      validate: (v) => {
-        if (!v || !v.trim()) return 'Required';
-        try {
-          parseContainerSasUrl(v.trim());
-          return undefined;
-        } catch (err) {
-          return (err as Error).message;
-        }
-      },
-    }),
-    'blob SAS URL',
-  );
-
-  const includeCache = ensure(
-    await confirm({
-      message: `Download the "cache" folder from the blob container for "${envName}"? (Umbraco's cache folder is usually not needed for archiving.)`,
-      initialValue: false,
-    }),
-    'include-cache prompt',
-  );
-
   let db: Environment['db'];
   if (dbMode === 'sqlpackage') {
     const server = ensure(
@@ -186,6 +161,31 @@ async function collectEnvironment(dbMode: DbMode, taken: string[]): Promise<Envi
       database: String(database).trim(),
     };
   }
+
+  const blobSasUrl = ensure(
+    await text({
+      message: `Shared Access Signature URL (SAS) for "${envName}" blob container:`,
+      placeholder: 'https://<account>.blob.core.windows.net/<container>?sv=...',
+      validate: (v) => {
+        if (!v || !v.trim()) return 'Required';
+        try {
+          parseContainerSasUrl(v.trim());
+          return undefined;
+        } catch (err) {
+          return (err as Error).message;
+        }
+      },
+    }),
+    'blob SAS URL',
+  );
+
+  const includeCache = ensure(
+    await confirm({
+      message: `Download the "cache" folder from the blob container for "${envName}"? (Umbraco's cache folder is usually not needed for archiving.)`,
+      initialValue: false,
+    }),
+    'include-cache prompt',
+  );
 
   return {
     name: envName,
